@@ -167,3 +167,28 @@ Trained on the **combined data** of both clients (Express Hub + Standard Hub), i
 The Federated Neural Network achieves Accuracy (0.6934) that is nearly identical to the Centralized upper bound (0.6968).  
 
 This is a strong positive result: under challenging non-IID conditions, Federated Learning recovers almost the same predictive performance as training on the fully pooled data, while keeping all raw data local. The remaining gap is mainly visible in the F1 score (0.6017 vs 0.6600).
+
+### Exp 11 – Neural Network with 5 Communication Rounds (Strong Non-IID)
+
+**Setup:**  
+Same strong non-IID partitioning (Express Hub vs Standard Hub) and same Neural Network architecture as Exp 8.  
+Number of communication rounds increased from 3 to **5**.  
+Local epochs = 5.
+
+**Results:**
+
+| Round | Loss   | Accuracy | F1 Score |
+|-------|--------|----------|----------|
+| 1     | 0.3365 | 0.6635   | 0.6392   |
+| 2     | 0.3088 | 0.6912   | 0.6015   |
+| 3     | 0.3064 | 0.6936   | 0.6018   |
+| 4     | 0.3051 | 0.6949   | 0.6006   |
+| 5     | 0.3062 | 0.6938   | 0.6021   |
+
+**Final Performance (Round 5):**  
+Accuracy: **0.6938** | F1: **0.6021**
+
+**Observation:**  
+The model shows clear improvement during the first 2–3 rounds and then stabilises. Extending training from 3 to 5 rounds produces no meaningful additional gains.  
+
+Final Accuracy remains very close to both the previous 3-round result (0.6934) and the centralized upper bound (0.6968). This indicates that three communication rounds are already sufficient for this architecture and data partitioning.
