@@ -21,10 +21,16 @@ class SupplyChainClient(fl.client.NumPyClient):
         return [self.model.coef_, self.model.intercept_]
 
     def fit(self, parameters, config):
+        # Load global parameters from the server
         self.model.coef_ = parameters[0]
         self.model.intercept_ = parameters[1]
-        
-        self.model.fit(self.X_train, self.y_train)
+
+        # Number of local epochs
+        local_epochs = 5
+
+        for _ in range(local_epochs):
+            self.model.fit(self.X_train, self.y_train)
+
         return self.get_parameters(config), len(self.X_train), {}
 
     def evaluate(self, parameters, config):

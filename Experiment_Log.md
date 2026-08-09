@@ -81,3 +81,20 @@ This partitioning created a strong non-IID setting with a clear performance gap 
 
 **Next planned investigations:**  
 Increase local epochs, test alternative aggregation strategies (e.g. FedProx), or move to a more expressive model.
+
+### Exp 7 – Strong Non-IID + Increased Local Epochs (5)
+
+**Setup:**  
+Same strong non-IID partitioning as Exp 6 (Express vs Standard Shipping Modes).  
+Logistic Regression with `warm_start=True` and **5 local epochs** per round.  
+3 rounds of FedAvg.
+
+**Results:**  
+- Federated Accuracy: **0.5508**  
+- Federated F1: **0.6970**  
+- Loss: 0.4492 (completely flat across all rounds)
+
+**Observation:**  
+Increasing the number of local epochs from 1 to 5 produced **no change** in performance. The metrics remained identical to Exp 6.  
+
+This indicates that standard Logistic Regression converges very quickly on this dataset. Additional local optimization steps do not alter the final model parameters meaningfully, and therefore provide no benefit under the current strong non-IID conditions.
