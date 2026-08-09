@@ -119,3 +119,26 @@ Accuracy: **0.6934** | F1: **0.6017**
 This is the first experiment in which the global model showed clear improvement across rounds (loss decreased and accuracy increased from Round 1 to Round 2).  
 
 Compared to Logistic Regression on the same strong non-IID split (Exp 6/7: Accuracy 0.5508), the Neural Network achieved substantially higher Accuracy (0.6934). This suggests that increased model capacity helps mitigate some of the negative transfer observed with linear models under heterogeneous supply-chain data distributions.
+
+### Exp 9 – Neural Network Local Baselines (Strong Non-IID)
+
+**Setup:**  
+Same strong non-IID partitioning (Express Hub vs Standard Hub).  
+Same Neural Network architecture as Exp 8 (Input → 64 → 32 → 1).  
+Trained locally for 5 epochs on each silo independently.
+
+**Results:**
+
+| Setting                        | Accuracy | F1 Score |
+|--------------------------------|----------|----------|
+| Client 1 Local (Express Hub)   | 0.8348   | 0.9041   |
+| Client 2 Local (Standard Hub)  | 0.6552   | 0.5207   |
+| Federated Neural Network (Exp 8) | 0.6934 | 0.6017   |
+
+**Observation:**  
+The federated Neural Network achieves performance that lies between the two local models.  
+
+- It provides a clear improvement for the weaker client (F1 rises from 0.5207 → 0.6017).  
+- It still underperforms the stronger client (Accuracy 0.6934 vs 0.8348).  
+
+Compared to Logistic Regression under the same strong non-IID conditions (Federated Accuracy 0.5508), the Neural Network delivers substantially better global performance. This indicates that increased model capacity helps mitigate some of the negative transfer observed with linear models.
