@@ -1,17 +1,17 @@
 # Privacy-Preserving Predictive Analytics in Supply Chains: A Federated Learning Architecture
 
-This repository contains the simulation environment and source code for an MSc Computer Science project. The goal is to evaluate whether Federated Learning can enable collaborative predictive analytics across decentralized supply chain entities **without sharing raw proprietary data**.
+This repository contains the simulation environment and source code for an MSc Computer Science project evaluating Federated Learning (FL) for predictive analytics across decentralized supply chain data silos.
 
 ## Project Overview
 
-Modern supply chains generate valuable operational data that remains siloed due to privacy regulations and competitive concerns. This project implements a Federated Learning architecture that allows multiple parties to collaboratively train a model for predicting late delivery risk (`Late_delivery_risk`) while keeping their data local.
+Modern supply chains generate valuable operational data that remains siloed due to privacy regulations and competitive concerns. This project investigates whether Federated Learning can enable collaborative prediction of late delivery risk (`Late_delivery_risk`) without requiring participants to share raw proprietary data.
 
-**Current implementation characteristics:**
-- Framework: Flower (FedAvg strategy)
-- Model: Logistic Regression
+**Key characteristics of the current implementation:**
+- Framework: Flower (FedAvg)
+- Models evaluated: Logistic Regression and a small Multi-Layer Perceptron (Neural Network)
 - Dataset: DataCo Smart Supply Chain
-- Data partitioning: Geographic (Europe vs LATAM)
-- Strict elimination of target leakage
+- Partitioning strategies: Geographic (mild non-IID) and Shipping Mode (strong non-IID)
+- Strict removal of target leakage (only pre-event features are used)
 
 ## Prerequisites
 
@@ -25,9 +25,13 @@ Modern supply chains generate valuable operational data that remains siloed due 
 # Download the dataset
 python -m kaggle datasets download -d shashwatwork/dataco-smart-supply-chain-for-big-data-analysis -p data/ --unzip
 
-# Partition the data into regional silos (Europe and LATAM)
+# Create strong non-IID partitions based on Shipping Mode
 python data/partition_data.py
 ```
+
+The current partitioning creates two realistic logistics silos:
+- **Client 1 – Express Hub**: First Class + Same Day shipments
+- **Client 2 – Standard Hub**: Second Class + Standard Class shipments
 
 ## 2. Infrastructure Spin-Up
 
@@ -35,66 +39,80 @@ python data/partition_data.py
 docker compose up --build -d
 ```
 
-This starts:
-- 1 Central aggregation server
-- 2 Isolated client nodes (data silos)
+This starts one central aggregation server and two isolated client nodes.
 
 ## 3. Running Experiments
 
-### A. Local Baselines (Isolated Training)
-
-Train a model on a single silo without federation:
+### Local Baselines
 
 ```bash
-# Client 1 – Europe silo
+# Logistic Regression
 docker compose exec client-1 python local_baseline.py
-
-# Client 2 – LATAM silo
 docker compose exec client-2 python local_baseline.py
+
+# Neural Network
+docker compose exec client-1 python local_baseline_nn.py
+docker compose exec client-2 python local_baseline_nn.py
 ```
 
-### B. Federated Training
+### Federated Training
 
-1. Restart the central server:
 ```bash
 docker compose restart central-server
 ```
 
-2. Launch both clients (use separate terminals):
+Then in two separate terminals:
+
 ```bash
 docker compose exec client-1 python client_node.py
 docker compose exec client-2 python client_node.py
 ```
 
-3. Inspect the results:
+View results:
+
 ```bash
 docker compose logs central-server
 ```
 
-## 4. Current Experimental Results
+### Centralized Baseline (Upper Bound)
 
-| Experiment                          | Scope                        | Accuracy | F1 Score | Notes |
-|-------------------------------------|------------------------------|----------|----------|-------|
-| Local Baseline – Client 1           | Europe only (n ≈ 40,201)     | 0.6910   | 0.6810   | Isolated regional performance |
-| Local Baseline – Client 2           | LATAM only (n ≈ 41,275)      | 0.6948   | 0.6763   | Isolated regional performance |
-| Federated Model (3 rounds)          | Europe + LATAM (2 silos)     | 0.6929   | 0.6786   | Nearly identical to local baselines. Metrics remained flat across rounds. |
-| Early experiment (with leakage)     | 2 silos                      | ~0.98    | ~0.98    | Discarded due to severe target leakage |
+```bash
+python centralized_baseline_nn.py
+```
 
-**Interpretation:**  
-With the current geographic partitioning and Logistic Regression, the two data silos exhibit very similar distributions. Federated Averaging currently provides neither significant performance benefit nor penalty compared to training on isolated local data.
+## 4. Key Experimental Results
+
+### Strong Non-IID Setting (Shipping Mode Partition)
+
+| Setting                              | Accuracy | F1 Score | Notes |
+|--------------------------------------|----------|----------|-------|
+| Local – Client 1 (Express Hub)       | 0.8348   | 0.9041   | Strong local performance |
+| Local – Client 2 (Standard Hub)      | 0.6552   | 0.5207   | Weaker local performance |
+| Federated – Logistic Regression      | 0.5508   | 0.6970   | Severe negative transfer |
+| **Federated – Neural Network**       | **0.6934** | 0.6017 | Significant improvement over LR |
+| **Centralized – Neural Network**     | **0.6968** | **0.6600** | Theoretical upper bound |
+
+### Main Findings
+
+1. **Target leakage was successfully eliminated.** Early experiments that included post-event features produced unrealistically high accuracy (~98%) and were discarded.
+2. **Geographic partitioning produced only mild non-IID conditions.** Local and federated performance were nearly identical.
+3. **Shipping Mode partitioning creates strong non-IID conditions.** A clear performance gap appears between the Express and Standard hubs.
+4. **Standard FedAvg with Logistic Regression suffers from negative transfer** under strong non-IID (Accuracy drops to 0.55).
+5. **A small Neural Network significantly mitigates this problem**, achieving Accuracy (0.6934) that is nearly identical to the centralized upper bound (0.6968).
+6. Federated Learning with a Neural Network can recover almost the same predictive performance as centralized training while keeping all raw data local.
 
 ## 5. Methodological Notes
 
-- All post-event features (e.g. `Days for shipping (real)`, `Delivery Status`) were removed to eliminate target leakage.
-- Only information available at the time of order placement is used for prediction.
-- Categorical features are one-hot encoded.
+- Only features available at the time of order placement are used (strict pre-event feature set).
+- Categorical variables are one-hot encoded.
 - Server-side weighted aggregation is used for Accuracy and F1-Score.
+- All experiments are fully containerized to guarantee data isolation between silos.
 
 ## 6. Next Steps
 
-- Design stronger non-IID data partitions
-- Increase the number of simulated clients
-- Experiment with a higher number of local training epochs
-- Evaluate more expressive models (e.g. small neural networks)
-- Analyse communication overhead and convergence behaviour under different conditions
+- Increase the number of communication rounds
+- Experiment with higher numbers of local epochs
+- Evaluate alternative aggregation strategies (e.g. FedProx)
+- Scale to a larger number of clients
+- Analyse communication overhead and convergence behaviour in more detail
 ```

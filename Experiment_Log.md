@@ -142,3 +142,28 @@ The federated Neural Network achieves performance that lies between the two loca
 - It still underperforms the stronger client (Accuracy 0.6934 vs 0.8348).  
 
 Compared to Logistic Regression under the same strong non-IID conditions (Federated Accuracy 0.5508), the Neural Network delivers substantially better global performance. This indicates that increased model capacity helps mitigate some of the negative transfer observed with linear models.
+
+### Exp 10 – Centralized Neural Network Baseline (Upper Bound)
+
+**Setup:**  
+Same Neural Network architecture as Exp 8 & 9.  
+Trained on the **combined data** of both clients (Express Hub + Standard Hub), i.e. the full dataset with no privacy constraints.  
+5 local epochs.
+
+**Results:**  
+- Accuracy: **0.6968**  
+- F1 Score: **0.6600**
+
+**Full Comparison (Strong Non-IID Setting):**
+
+| Setting                              | Accuracy | F1 Score |
+|--------------------------------------|----------|----------|
+| Local – Client 1 (Express Hub)       | 0.8348   | 0.9041   |
+| Local – Client 2 (Standard Hub)      | 0.6552   | 0.5207   |
+| Federated Neural Network             | 0.6934   | 0.6017   |
+| Centralized Neural Network           | 0.6968   | 0.6600   |
+
+**Observation:**  
+The Federated Neural Network achieves Accuracy (0.6934) that is nearly identical to the Centralized upper bound (0.6968).  
+
+This is a strong positive result: under challenging non-IID conditions, Federated Learning recovers almost the same predictive performance as training on the fully pooled data, while keeping all raw data local. The remaining gap is mainly visible in the F1 score (0.6017 vs 0.6600).
