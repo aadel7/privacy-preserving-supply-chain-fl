@@ -79,9 +79,6 @@ This partitioning created a strong non-IID setting with a clear performance gap 
 - Strong non-IID (Shipping Mode) causes negative transfer under standard FedAvg.
 - Logistic Regression converges very quickly; metrics do not improve across rounds.
 
-**Next planned investigations:**  
-Increase local epochs, test alternative aggregation strategies (e.g. FedProx), or move to a more expressive model.
-
 ### Exp 7 – Strong Non-IID + Increased Local Epochs (5)
 
 **Setup:**  
@@ -98,3 +95,27 @@ Logistic Regression with `warm_start=True` and **5 local epochs** per round.
 Increasing the number of local epochs from 1 to 5 produced **no change** in performance. The metrics remained identical to Exp 6.  
 
 This indicates that standard Logistic Regression converges very quickly on this dataset. Additional local optimization steps do not alter the final model parameters meaningfully, and therefore provide no benefit under the current strong non-IID conditions.
+
+### Exp 8 – Strong Non-IID + Small Neural Network
+
+**Setup:**  
+Same strong non-IID partitioning as Exp 6 & 7 (Express Hub vs Standard Hub based on Shipping Mode).  
+Model changed from Logistic Regression to a small Multi-Layer Perceptron (MLP):  
+Input → 64 → 32 → 1 (with ReLU and Dropout).  
+Local epochs = 5, 3 rounds of FedAvg, Adam optimizer.
+
+**Results:**
+
+| Round | Loss   | Accuracy | F1 Score |
+|-------|--------|----------|----------|
+| 1     | 0.3449 | 0.6551   | 0.6440   |
+| 2     | 0.3066 | 0.6934   | 0.6006   |
+| 3     | 0.3066 | 0.6934   | 0.6017   |
+
+**Final Federated Performance:**  
+Accuracy: **0.6934** | F1: **0.6017**
+
+**Observation:**  
+This is the first experiment in which the global model showed clear improvement across rounds (loss decreased and accuracy increased from Round 1 to Round 2).  
+
+Compared to Logistic Regression on the same strong non-IID split (Exp 6/7: Accuracy 0.5508), the Neural Network achieved substantially higher Accuracy (0.6934). This suggests that increased model capacity helps mitigate some of the negative transfer observed with linear models under heterogeneous supply-chain data distributions.

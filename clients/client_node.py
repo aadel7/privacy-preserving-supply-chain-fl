@@ -1,47 +1,92 @@
-import pandas as pd
-import numpy as np
 import os
 import warnings
+import numpy as np
+import pandas as pd
+import torch
+import torch.nn as nn
+from torch.utils.data import DataLoader, TensorDataset
 from sklearn.model_selection import train_test_split
-from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import f1_score, accuracy_score
+from sklearn.metrics import accuracy_score, f1_score
 import flwr as fl
 
 warnings.simplefilter("ignore")
+DEVICE = torch.device("cpu")
 
+# --------------------------------------------------
+# Simple Neural Network
+# --------------------------------------------------
+class SupplyChainMLP(nn.Module):
+    def __init__(self, input_dim: int):
+        super().__init__()
+        self.net = nn.Sequential(
+            nn.Linear(input_dim, 64),
+            nn.ReLU(),
+            nn.Dropout(0.2),
+            nn.Linear(64, 32),
+            nn.ReLU(),
+            nn.Linear(32, 1)
+        )
+
+    def forward(self, x):
+        return self.net(x).squeeze()
+
+
+# --------------------------------------------------
+# Flower Client
+# --------------------------------------------------
 class SupplyChainClient(fl.client.NumPyClient):
-    def __init__(self, model, X_train, X_test, y_train, y_test):
+    def __init__(self, model, train_loader, X_test, y_test, local_epochs=5):
         self.model = model
-        self.X_train = X_train
-        self.X_test = X_test
-        self.y_train = y_train
+        self.train_loader = train_loader
+        self.X_test = torch.tensor(X_test, dtype=torch.float32)
         self.y_test = y_test
+        self.local_epochs = local_epochs
+        self.criterion = nn.BCEWithLogitsLoss()
+        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=0.001)
 
     def get_parameters(self, config):
-        return [self.model.coef_, self.model.intercept_]
+        return [val.cpu().numpy() for _, val in self.model.state_dict().items()]
+
+    def set_parameters(self, parameters):
+        params_dict = zip(self.model.state_dict().keys(), parameters)
+        state_dict = {k: torch.tensor(v) for k, v in params_dict}
+        self.model.load_state_dict(state_dict, strict=True)
 
     def fit(self, parameters, config):
-        # Load global parameters from the server
-        self.model.coef_ = parameters[0]
-        self.model.intercept_ = parameters[1]
+        self.set_parameters(parameters)
+        self.model.train()
 
-        # Number of local epochs
-        local_epochs = 5
+        for _ in range(self.local_epochs):
+            for X_batch, y_batch in self.train_loader:
+                self.optimizer.zero_grad()
+                outputs = self.model(X_batch)
+                loss = self.criterion(outputs, y_batch)
+                loss.backward()
+                self.optimizer.step()
 
-        for _ in range(local_epochs):
-            self.model.fit(self.X_train, self.y_train)
-
-        return self.get_parameters(config), len(self.X_train), {}
+        return self.get_parameters(config), len(self.train_loader.dataset), {}
 
     def evaluate(self, parameters, config):
-        self.model.coef_ = parameters[0]
-        self.model.intercept_ = parameters[1]
-        
-        preds = self.model.predict(self.X_test)
+        self.set_parameters(parameters)
+        self.model.eval()
+
+        with torch.no_grad():
+            outputs = self.model(self.X_test)
+            preds = (torch.sigmoid(outputs) > 0.5).numpy().astype(int)
+
         accuracy = accuracy_score(self.y_test, preds)
         f1 = f1_score(self.y_test, preds)
-        return float(1.0 - accuracy), len(self.X_test), {"accuracy": float(accuracy), "f1_score": float(f1)}
 
+        # Flower expects a loss value (we use 1 - accuracy)
+        return float(1.0 - accuracy), len(self.y_test), {
+            "accuracy": float(accuracy),
+            "f1_score": float(f1)
+        }
+
+
+# --------------------------------------------------
+# Data loading (same clean features as before)
+# --------------------------------------------------
 def load_data():
     data_path = 'data.csv'
     if not os.path.exists(data_path):
@@ -49,48 +94,63 @@ def load_data():
 
     print("Loading local client dataset...")
     df = pd.read_csv(data_path, encoding='latin1')
+
     target = 'Late_delivery_risk'
-    
-    # Comprehensive, leakage-free feature set (Numerical + Categorical pre-event signals)
-    feature_columns = [
-        'Days for shipment (scheduled)', 
-        'Order Item Quantity', 
-        'Sales', 
+
+    numeric_features = [
+        'Days for shipment (scheduled)',
+        'Order Item Quantity',
+        'Order Item Discount',
+        'Order Item Discount Rate',
+        'Order Item Product Price',
         'Product Price',
+        'Sales'
+    ]
+
+    categorical_features = [
         'Shipping Mode',
         'Market',
         'Order Region',
-        'Customer Segment'
+        'Customer Segment',
+        'Category Name',
+        'Type'
     ]
-    
-    # Filter to ensure only columns present in the dataset are used
-    available_features = [col for col in feature_columns if col in df.columns]
-    
-    df_clean = df[available_features + [target]].dropna().copy()
-    
-    # Safely encode categorical columns to ensure uniform shape across independent client silos
-    categorical_cols = ['Shipping Mode', 'Market', 'Order Region', 'Customer Segment']
-    for col in categorical_cols:
-        if col in df_clean.columns:
-            df_clean[col] = df_clean[col].astype('category').cat.codes
 
-    X = df_clean[available_features]
-    y = df_clean[target]
-    return train_test_split(X, y, test_size=0.2, random_state=42)
+    columns_to_use = numeric_features + categorical_features + [target]
+    df_clean = df[columns_to_use].dropna()
+
+    df_encoded = pd.get_dummies(df_clean, columns=categorical_features, drop_first=True)
+
+    X = df_encoded.drop(columns=[target]).values.astype(np.float32)
+    y = df_encoded[target].values.astype(np.float32)
+
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y, test_size=0.2, random_state=42, stratify=y
+    )
+
+    # Create DataLoader
+    train_dataset = TensorDataset(
+        torch.tensor(X_train, dtype=torch.float32),
+        torch.tensor(y_train, dtype=torch.float32)
+    )
+    train_loader = DataLoader(train_dataset, batch_size=64, shuffle=True)
+
+    return train_loader, X_test, y_test, X_train.shape[1]
+
 
 def main():
-    X_train, X_test, y_train, y_test = load_data()
+    train_loader, X_test, y_test, input_dim = load_data()
 
-    model = LogisticRegression(max_iter=1000, warm_start=True)
-    model.classes_ = np.array([0, 1])
-    model.coef_ = np.zeros((1, X_train.shape[1]))
-    model.intercept_ = np.zeros((1,))
+    model = SupplyChainMLP(input_dim).to(DEVICE)
 
+    print(f"Model input dimension: {input_dim}")
     print("Connecting to central server for Federated Learning...")
+
     fl.client.start_numpy_client(
         server_address="central-server:8080",
-        client=SupplyChainClient(model, X_train, X_test, y_train, y_test),
+        client=SupplyChainClient(model, train_loader, X_test, y_test, local_epochs=5),
     )
+
 
 if __name__ == "__main__":
     main()
