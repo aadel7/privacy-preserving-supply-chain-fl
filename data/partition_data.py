@@ -1,26 +1,46 @@
 import pandas as pd
 import os
 
-def partition_dataco_data():
-    file_path = 'data/DataCoSupplyChainDataset.csv'
+def partition_data():
+    print("Loading raw DataCo dataset...")
+    # Adjust path if your raw data file has a specific name
+    raw_path = "data/DataCoSupplyChainDataset.csv"  # update if named differently in your data/ folder
+    if not os.path.exists(raw_path):
+        # Look for any csv file in data/
+        csv_files = [f for f in os.listdir("data") if f.endswith(".csv") and f != "data.csv"]
+        if csv_files:
+            raw_path = os.path.join("data", csv_files[0])
+        else:
+            raise FileNotFoundError("Could not find the raw DataCo dataset CSV in the data/ folder.")
+
+    df = pd.read_csv(raw_path, encoding='latin1')
+    print(f"Loaded dataset with {len(df)} rows.")
+
+    # Check unique shipping modes
+    if 'Shipping Mode' in df.columns:
+        print("Shipping modes found:", df['Shipping Mode'].unique())
+    else:
+        raise KeyError("Column 'Shipping Mode' not found in dataset.")
+
+    # Create strongly non-IID partitions based on Shipping Mode
+    express_modes = ['First Class', 'Same Day']
+    standard_modes = ['Second Class', 'Standard Class']
+
+    df_client1 = df[df['Shipping Mode'].isin(express_modes)].copy()
+    df_client2 = df[df['Shipping Mode'].isin(standard_modes)].copy()
+
+    print(f"Client 1 (Express Hub - {express_modes}): {len(df_client1)} rows")
+    print(f"Client 2 (Standard Hub - {standard_modes}): {len(df_client2)} rows")
+
+    # Ensure output directories exist or save directly where docker expects them
+    # Assuming your docker volumes mount data from a specific path or client folders
+    os.makedirs("data/client_1", exist_ok=True)
+    os.makedirs("data/client_2", exist_ok=True)
+
+    df_client1.to_csv("data/client_1/data.csv", index=False)
+    df_client2.to_csv("data/client_2/data.csv", index=False)
     
-    print("Loading DataCo dataset...")
-    # Using 'latin1' encoding as the DataCo dataset often contains special characters
-    df = pd.read_csv(file_path, encoding='latin1')
-    
-    print(f"Total dataset shape: {df.shape}")
-    
-    # Client 1: Europe Market
-    client_1_df = df[df['Market'] == 'Europe']
-    client_1_path = 'data/client_1_data.csv'
-    client_1_df.to_csv(client_1_path, index=False)
-    print(f"Client 1 (Europe) data saved: {client_1_df.shape} rows.")
-    
-    # Client 2: LATAM Market
-    client_2_df = df[df['Market'] == 'LATAM']
-    client_2_path = 'data/client_2_data.csv'
-    client_2_df.to_csv(client_2_path, index=False)
-    print(f"Client 2 (LATAM) data saved: {client_2_df.shape} rows.")
+    print("Partitioning complete! Non-IID silos saved to data/client_1/ and data/client_2/")
 
 if __name__ == "__main__":
-    partition_dataco_data()
+    partition_data()
