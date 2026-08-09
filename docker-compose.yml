@@ -1,0 +1,33 @@
+services:
+  central-server:
+    build: 
+      context: ./server
+    ports:
+      - "8000:8000"
+      - "8080:8080"
+    networks:
+      - fl-network
+
+  client-1:
+    image: python:3.10-slim
+    volumes:
+      - ./data/client_1_data.csv:/app/data.csv
+      - ./clients:/app
+    working_dir: /app
+    command: tail -f /dev/null
+    networks:
+      - fl-network
+
+  client-2:
+    image: python:3.10-slim
+    volumes:
+      - ./data/client_2_data.csv:/app/data.csv
+      - ./clients:/app
+    working_dir: /app
+    command: tail -f /dev/null
+    networks:
+      - fl-network
+
+networks:
+  fl-network:
+    driver: bridge
