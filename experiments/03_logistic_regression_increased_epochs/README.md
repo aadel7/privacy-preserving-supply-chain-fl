@@ -22,71 +22,56 @@ This experiment investigates whether **increasing the number of local training e
 
 ## Key Findings
 
-| Metric | Exp 2 (1 epoch) | Exp 3 (5 epochs) | Improvement |
-|--------|-----------------|------------------|-------------|
-| **Federated Accuracy** | 0.5508 | ~0.58-0.60 | +5-9% |
-| **Convergence** | Diverges | More stable | Better |
+| Metric | Exp 2 (1 epoch) | Exp 3 (5 epochs) | Change |
+|--------|-----------------|------------------|--------|
+| **Federated Accuracy** | 0.5508 | **0.5508** | No change |
+| **Federated F1** | 0.6970 | **0.6970** | No change |
+| **Loss** | 0.4492 | **0.4492** | No change |
 
 **Interpretation:**  
-More local training helps but **does not solve the fundamental problem.** Even with 5 epochs:
-- Federated performance still lags behind local baselines (~0.70)
-- Negative transfer is reduced but still present
-- Logistic Regression cannot handle strong non-IID, regardless of epochs
+Increasing local epochs from 1 to 5 produced **no improvement**. Results were identical to Experiment 2. Metrics remained completely flat across rounds.
 
-## Why More Epochs Help (Partially)
+This indicates that standard Logistic Regression converges very quickly on this dataset. Additional local optimization steps do not meaningfully change the final parameters and therefore provide no benefit under strong non-IID conditions.
 
-1. **Better Local Convergence:** Each client fits its local data more thoroughly
-2. **Reduced Averaging Impact:** Clients diverge less when they've trained more locally
-3. **But: Still Not Enough:** Linear models lack capacity to learn heterogeneous patterns
+## Why More Epochs Did Not Help
 
-## Why More Epochs Don't Fully Fix It
-
-The fundamental problem is that **Logistic Regression is too simple** for heterogeneous data:
-- Express Hub needs one decision boundary
-- Standard Hub needs a different decision boundary
-- Averaging these boundaries helps neither
-- More training on each doesn't change this structural mismatch
+1. **Fast convergence of Logistic Regression:** The model reaches (near) optimum after a single `fit()` call on this data.
+2. **Structural limitation:** The problem is not insufficient local training, but the inability of a linear model to represent heterogeneous decision boundaries.
+3. **Averaging still dominates:** Even with more local steps, FedAvg still produces a compromise model that underperforms both local baselines.
 
 ## Comparison Across Experiments
 
-| Experiment | Model | Epochs | Non-IID | Fed Acc | Local Acc |
-|------------|-------|--------|---------|---------|----------|
-| **1** | LR | 1 | Mild | 0.6929 | 0.69 |
-| **2** | LR | 1 | Strong | 0.5508 | 0.70 |
-| **3** | LR | 5 | Strong | ~0.58-0.60 | 0.70 |
-| **4** | MLP | 5 | Strong | **0.6934** | 0.70 |
+| Experiment | Model | Epochs | Non-IID | Fed Acc | Notes |
+|------------|-------|--------|---------|---------|-------|
+| **1** | LR | 1 | Mild | 0.6929 | Geographic split |
+| **2** | LR | 1 | Strong | 0.5508 | Negative transfer |
+| **3** | LR | 5 | Strong | **0.5508** | **No improvement** |
+| **4** | MLP | 5 | Strong | **0.6934** | Breakthrough |
 
-**Key Insight:** Switching to a neural network (Exp 4) achieves far more than increasing epochs (Exp 3).
+**Key Insight:** Switching to a neural network (Exp 4) achieves far more than increasing epochs on Logistic Regression.
 
 ## How to Run
 
 ```bash
 cd experiments/03_logistic_regression_increased_epochs/
-docker-compose up --build -d
-
-# Local baseline
-docker-compose exec client-1 python local_baseline.py
+docker compose up --build -d
 
 # Federated training with 5 local epochs
-docker-compose restart central-server
-docker-compose exec client-1 python client_node.py
-docker-compose exec client-2 python client_node.py
+docker compose restart central-server
+docker compose exec client-1 python client_node.py
+docker compose exec client-2 python client_node.py
 
-# Compare with Exp 2 results
-docker-compose logs central-server
+docker compose logs central-server
 ```
 
-## Code Change
-
-The only change from Experiment 2 is in `client_node.py`:
+## Code Change from Exp 2
 
 ```python
 def fit(self, parameters, config):
     self.model.coef_ = parameters[0]
     self.model.intercept_ = parameters[1]
 
-    # Number of local epochs
-    local_epochs = 5  # <-- Changed from implicit 1 to explicit 5
+    local_epochs = 5  # <-- explicit multi-epoch loop
 
     for _ in range(local_epochs):
         self.model.fit(self.X_train, self.y_train)
@@ -96,22 +81,17 @@ def fit(self, parameters, config):
 
 ## Lessons Learned
 
-1. **More Local Training ≠ More Federated Performance** under strong non-IID
-2. **Model capacity is the limiting factor**, not training iterations
-3. **Linear models have fundamental limitations** for heterogeneous data
-4. **Need expressive models** (neural networks) to solve this problem
-
-## Next Steps
-
-- **Exp 4:** Switch to neural networks — dramatic breakthrough
-- **Future:** Personalization techniques (Ditto, Per-FedAvg) that allow different clients to learn different models
+1. More local training ≠ better federated performance under strong non-IID when using linear models.
+2. Model capacity is the limiting factor, not the number of local iterations.
+3. Need more expressive models (neural networks) to address this problem.
 
 ## Files in This Folder
 
 ```
 03_logistic_regression_increased_epochs/
 ├── README.md
-├── client_node.py          (with 5 local epochs loop)
+├── metrics.json
+├── client_node.py
 ├── local_baseline.py
 ├── server/
 │   ├── main.py
