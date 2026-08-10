@@ -1,0 +1,16 @@
+services:
+  client-1:
+    image: python:3.10-slim
+    volumes:
+      - ./data/client_1/data.csv:/app/data.csv
+      - .:/app
+    working_dir: /app
+    command: tail -f /dev/null
+
+  client-2:
+    image: python:3.10-slim
+    volumes:
+      - ./data/client_2/data.csv:/app/data.csv
+      - .:/app
+    working_dir: /app
+    command: tail -f /dev/null
