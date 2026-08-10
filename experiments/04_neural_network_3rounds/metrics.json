@@ -1,0 +1,23 @@
+{
+  "experiment_id": "04_neural_network_3rounds",
+  "model": "MLP (64-32-1)",
+  "framework": "Flower + PyTorch (FedAvg)",
+  "partitioning": "Shipping Mode (Express Hub vs Standard Hub)",
+  "non_iid_level": "strong",
+  "num_rounds": 3,
+  "local_epochs": 5,
+  "optimizer": "Adam",
+  "learning_rate": 0.001,
+  "results": {
+    "federated": {
+      "accuracy": 0.6934,
+      "f1_score": 0.6017,
+      "per_round": {
+        "accuracy": [0.6551, 0.6934, 0.6934],
+        "f1_score": [0.6440, 0.6006, 0.6017],
+        "loss": [0.3449, 0.3066, 0.3066]
+      }
+    }
+  },
+  "notes": "First experiment showing clear improvement across rounds. NN substantially outperforms LR (0.6934 vs 0.5508) under the same strong non-IID conditions."
+}

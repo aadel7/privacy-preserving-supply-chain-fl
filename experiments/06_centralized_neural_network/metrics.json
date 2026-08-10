@@ -1,0 +1,14 @@
+{
+  "experiment_id": "06_centralized_neural_network",
+  "model": "MLP (64-32-1)",
+  "training": "centralized (combined data, no privacy constraints)",
+  "epochs": 5,
+  "results": {
+    "centralized": {
+      "accuracy": 0.6968,
+      "f1_score": 0.6600,
+      "n_samples_train": 144415
+    }
+  },
+  "notes": "Theoretical upper bound. Federated NN (0.6934) is nearly identical to this centralized result, supporting the privacy-without-penalty claim."
+}

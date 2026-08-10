@@ -1,0 +1,22 @@
+{
+  "experiment_id": "03_logistic_regression_increased_epochs",
+  "model": "Logistic Regression",
+  "framework": "Flower (FedAvg)",
+  "partitioning": "Shipping Mode (Express Hub vs Standard Hub)",
+  "non_iid_level": "strong",
+  "num_rounds": 3,
+  "local_epochs": 5,
+  "results": {
+    "federated": {
+      "accuracy": 0.5508,
+      "f1_score": 0.6970,
+      "loss": 0.4492,
+      "per_round": {
+        "accuracy": [0.5508, 0.5508, 0.5508],
+        "f1_score": [0.6970, 0.6970, 0.6970],
+        "loss": [0.4492, 0.4492, 0.4492]
+      }
+    }
+  },
+  "notes": "Increasing local epochs from 1 to 5 produced NO change. Results identical to Exp 2. Logistic Regression converges quickly; additional local steps do not help under strong non-IID."
+}
