@@ -1,0 +1,87 @@
+import pandas as pd
+import numpy as np
+import os
+import warnings
+from sklearn.model_selection import train_test_split
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import f1_score, accuracy_score
+import flwr as fl
+
+warnings.simplefilter("ignore")
+
+class SupplyChainClient(fl.client.NumPyClient):
+    def __init__(self, model, X_train, X_test, y_train, y_test):
+        self.model = model
+        self.X_train = X_train
+        self.X_test = X_test
+        self.y_train = y_train
+        self.y_test = y_test
+
+    def get_parameters(self, config):
+        return [self.model.coef_, self.model.intercept_]
+
+    def fit(self, parameters, config):
+        self.model.coef_ = parameters[0]
+        self.model.intercept_ = parameters[1]
+        
+        self.model.fit(self.X_train, self.y_train)
+        return self.get_parameters(config), len(self.X_train), {}
+
+    def evaluate(self, parameters, config):
+        self.model.coef_ = parameters[0]
+        self.model.intercept_ = parameters[1]
+        
+        preds = self.model.predict(self.X_test)
+        accuracy = accuracy_score(self.y_test, preds)
+        f1 = f1_score(self.y_test, preds)
+        return float(1.0 - accuracy), len(self.X_test), {"accuracy": float(accuracy), "f1_score": float(f1)}
+
+def load_data():
+    data_path = 'data.csv'
+    if not os.path.exists(data_path):
+        raise FileNotFoundError(f"Data file not found at {data_path}")
+
+    print("Loading local client dataset...")
+    df = pd.read_csv(data_path, encoding='latin1')
+    target = 'Late_delivery_risk'
+    
+    feature_columns = [
+        'Days for shipment (scheduled)', 
+        'Order Item Quantity', 
+        'Sales', 
+        'Product Price',
+        'Shipping Mode',
+        'Market',
+        'Order Region',
+        'Customer Segment'
+    ]
+    
+    available_features = [col for col in feature_columns if col in df.columns]
+    
+    df_clean = df[available_features + [target]].dropna().copy()
+    
+    categorical_cols = ['Shipping Mode', 'Market', 'Order Region', 'Customer Segment']
+    for col in categorical_cols:
+        if col in df_clean.columns:
+            df_clean[col] = df_clean[col].astype('category').cat.codes
+
+    X = df_clean[available_features]
+    y = df_clean[target]
+    return train_test_split(X, y, test_size=0.2, random_state=42)
+
+def main():
+    X_train, X_test, y_train, y_test = load_data()
+
+    model = LogisticRegression(max_iter=1000, warm_start=True)
+    model.classes_ = np.array([0, 1])
+    model.coef_ = np.zeros((1, X_train.shape[1]))
+    model.intercept_ = np.zeros((1,))
+
+    print("Connecting to central server for Federated Learning (Strong Non-IID)...")
+    fl.client.start_numpy_client(
+        server_address="central-server:8080",
+        client=SupplyChainClient(model, X_train, X_test, y_train, y_test),
+    )
+
+if __name__ == "__main__":
+    main()
