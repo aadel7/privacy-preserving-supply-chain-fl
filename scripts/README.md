@@ -4,25 +4,14 @@
 
 Run **one** isolated experiment end-to-end.
 
-### Usage
-
-From the repository root:
-
 ```bash
-# Federated experiment (Docker server + 2 clients)
+# From repository root
 python scripts/run_experiment.py 04_neural_network_3rounds
-
-# Logistic regression / increased epochs
-python scripts/run_experiment.py 03_logistic_regression_increased_epochs
-
-# Local NN baselines
 python scripts/run_experiment.py 05_neural_network_local_baselines
-
-# Centralized NN (no Docker clients)
 python scripts/run_experiment.py 06_centralized_neural_network
 ```
 
-### Options
+Options:
 
 ```bash
 python scripts/run_experiment.py 04_neural_network_3rounds --timeout 900
@@ -42,13 +31,51 @@ python scripts/run_experiment.py 04_neural_network_3rounds --keep-up
 4. Waits for `metrics.json` (auto-exported by the server)
 5. Prints metrics and tears down (unless `--keep-up`)
 
-### Requirements
+---
 
-- Docker & Docker Compose available on `PATH`
+## `run_all_experiments.py`
+
+Run **all** (or a subset of) experiments **sequentially** via `run_experiment.py`.
+
+```bash
+# Full batch (slow — can take a long time)
+python scripts/run_all_experiments.py
+
+# Only selected experiments (by number or full name)
+python scripts/run_all_experiments.py --only 04,05,06
+python scripts/run_all_experiments.py --only 04_neural_network_3rounds,07_neural_network_5rounds
+
+# Skip early LR experiments
+python scripts/run_all_experiments.py --skip 01,02
+
+# Stop at first failure
+python scripts/run_all_experiments.py --stop-on-error
+
+# Longer per-experiment timeout
+python scripts/run_all_experiments.py --timeout 900
+```
+
+Default order:
+
+1. `01_logistic_regression_geographic`
+2. `02_logistic_regression_strong_non_iid`
+3. `03_logistic_regression_increased_epochs`
+4. `04_neural_network_3rounds`
+5. `05_neural_network_local_baselines`
+6. `06_centralized_neural_network`
+7. `07_neural_network_5rounds`
+
+At the end it prints a batch summary (OK/FAIL + time per experiment).
+
+---
+
+## Requirements
+
+- Docker & Docker Compose on `PATH`
 - Port **8080** free for federated experiments
-- Data files at `data/client_1/data.csv` and `data/client_2/data.csv`
+- Data at `data/client_1/data.csv` and `data/client_2/data.csv`
 
-### After a successful run
+## After runs
 
 Refresh charts:
 
