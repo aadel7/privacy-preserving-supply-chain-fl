@@ -3,6 +3,10 @@ services:
     build: .
     volumes:
       - ../../data/client_1/data.csv:/app/data.csv
+      - .:/output
+    environment:
+      - CLIENT_ID=client_1_express
+      - METRICS_PATH=/output/metrics_client_1.json
     networks:
       - fl-network
 
@@ -10,6 +14,10 @@ services:
     build: .
     volumes:
       - ../../data/client_2/data.csv:/app/data.csv
+      - .:/output
+    environment:
+      - CLIENT_ID=client_2_standard
+      - METRICS_PATH=/output/metrics_client_2.json
     networks:
       - fl-network
 
