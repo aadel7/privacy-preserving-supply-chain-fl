@@ -2,8 +2,6 @@
 import json
 from pathlib import Path
 
-import pytest
-
 
 def _iter_metrics_files(experiments_dir: Path):
     return sorted(experiments_dir.glob("*/metrics*.json"))
@@ -12,12 +10,6 @@ def _iter_metrics_files(experiments_dir: Path):
 def test_at_least_one_metrics_file(experiments_dir: Path):
     files = list(_iter_metrics_files(experiments_dir))
     assert files, "No metrics*.json found under experiments/"
-
-
-@pytest.mark.parametrize("path", [], indirect=False)
-def test_placeholder():
-    """Parametrize is filled dynamically below via pytest_generate_tests pattern alternative."""
-    pass
 
 
 def test_each_metrics_file_is_valid_json_and_has_core_fields(experiments_dir: Path):
@@ -35,7 +27,6 @@ def test_each_metrics_file_is_valid_json_and_has_core_fields(experiments_dir: Pa
         results = data["results"]
         assert isinstance(results, dict)
 
-        # At least one known result block
         known = {"federated", "local", "centralized"}
         nested_locals = {
             "local_client_1_express",

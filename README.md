@@ -96,7 +96,18 @@ jupyter notebook experiment_analysis.ipynb
 
 The notebook loads all `metrics.json` files and generates comparison charts and learning curves into `figures/`.
 
-## 5. Key Experimental Results
+## 5. Tests
+
+Lightweight checks (structure, metrics schema, aggregation, MLP shapes). Does not start Docker or full FL training.
+
+```bash
+pip install -r tests/requirements.txt
+pytest tests/ -v
+```
+
+See `tests/README.md` for details.
+
+## 6. Key Experimental Results
 
 ### Strong Non-IID Setting (Shipping Mode Partition)
 
@@ -117,14 +128,14 @@ The notebook loads all `metrics.json` files and generates comparison charts and 
 5. **A small Neural Network largely recovers performance** (0.6934), close to the centralized upper bound (0.6968).
 6. Federated Learning can approach centralized accuracy while keeping raw data local.
 
-## 6. Methodological Notes
+## 7. Methodological Notes
 
 - Only pre-event features are used (no target leakage).
 - Categorical variables are one-hot encoded.
 - Server-side weighted aggregation for Accuracy and F1.
 - Experiments are containerized for data isolation between silos.
 
-## 7. Repository Layout
+## 8. Repository Layout
 
 ```text
 .
@@ -132,10 +143,11 @@ The notebook loads all `metrics.json` files and generates comparison charts and 
 ├── server/                  # Latest server code
 ├── data/                    # Dataset and partitions
 ├── experiments/             # Isolated experiment archive
-│   ├── 01_.../              # Self-contained snapshots
+│   ├── 01_.../
 │   ├── analysis/            # Jupyter notebook for charts
 │   └── README.md
-├── figures/                 # Generated charts
+├── tests/                   # pytest suite
+├── figures/
 ├── Experiment_Log.md
 └── README.md
 ```
