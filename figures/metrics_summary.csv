@@ -1,5 +1,5 @@
 experiment,setting,accuracy,f1_score,loss,source
-01_logistic_regression_geographic,federated,0.5507547431103725,0.6969674739445845,0.4492452630436564,flower_history
+01_logistic_regression_geographic,federated,0.6929307805596465,0.6786211899424555,0.3070692197885593,flower_history
 02_logistic_regression_strong_non_iid,federated,0.5507547431103725,0.6969674739445845,0.4492452630436564,flower_history
 03_logistic_regression_increased_epochs,federated,0.5507547431103725,0.6969674739445845,0.4492452630436564,flower_history
 04_neural_network_3rounds,federated,0.6879933527212297,0.6118074467095604,0.31200664122420624,flower_history
