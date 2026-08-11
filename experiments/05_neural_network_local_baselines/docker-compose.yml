@@ -2,7 +2,7 @@ services:
   client-1:
     build: .
     volumes:
-      - ../../data/client_1/data.csv:/app/data.csv
+      - ../../data/shipping_mode/client_1/data.csv:/app/data.csv
       - .:/output
     environment:
       - CLIENT_ID=client_1_express
@@ -13,7 +13,7 @@ services:
   client-2:
     build: .
     volumes:
-      - ../../data/client_2/data.csv:/app/data.csv
+      - ../../data/shipping_mode/client_2/data.csv:/app/data.csv
       - .:/output
     environment:
       - CLIENT_ID=client_2_standard

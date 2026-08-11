@@ -15,7 +15,7 @@ services:
   client-1:
     build: .
     volumes:
-      - ../../data/client_1/data.csv:/app/data.csv
+      - ../../data/shipping_mode/client_1/data.csv:/app/data.csv
     environment:
       - SERVER_ADDRESS=central-server:8080
     depends_on:
@@ -26,7 +26,7 @@ services:
   client-2:
     build: .
     volumes:
-      - ../../data/client_2/data.csv:/app/data.csv
+      - ../../data/shipping_mode/client_2/data.csv:/app/data.csv
     environment:
       - SERVER_ADDRESS=central-server:8080
     depends_on:
