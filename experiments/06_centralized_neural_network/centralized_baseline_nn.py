@@ -32,10 +32,18 @@ class SupplyChainMLP(nn.Module):
 
 
 def load_combined_data():
-    # Support running from experiment folder or repo root
+    # Prefer explicit shipping-mode partitions, then legacy client_* paths
     candidates = [
-        ("data/client_1/data.csv", "data/client_2/data.csv"),
+        (
+            "../../data/shipping_mode/client_1/data.csv",
+            "../../data/shipping_mode/client_2/data.csv",
+        ),
+        (
+            "data/shipping_mode/client_1/data.csv",
+            "data/shipping_mode/client_2/data.csv",
+        ),
         ("../../data/client_1/data.csv", "../../data/client_2/data.csv"),
+        ("data/client_1/data.csv", "data/client_2/data.csv"),
     ]
     path1 = path2 = None
     for p1, p2 in candidates:
@@ -43,9 +51,11 @@ def load_combined_data():
             path1, path2 = p1, p2
             break
     if path1 is None:
-        raise FileNotFoundError("Could not find client_1/client_2 data.csv")
+        raise FileNotFoundError(
+            "Could not find shipping-mode client data. Run: python data/partition_data.py"
+        )
 
-    print("Loading and combining both client datasets...")
+    print(f"Loading combined data from:\n  {path1}\n  {path2}")
     df1 = pd.read_csv(path1, encoding="latin1")
     df2 = pd.read_csv(path2, encoding="latin1")
     df = pd.concat([df1, df2], ignore_index=True)

@@ -4,9 +4,8 @@ Run a single isolated experiment from experiments/<name>/
 
 Examples:
   python scripts/run_experiment.py 04_neural_network_3rounds
-  python scripts/run_experiment.py 03_logistic_regression_increased_epochs --keep-up
+  python scripts/run_experiment.py 01_logistic_regression_geographic
   python scripts/run_experiment.py 06_centralized_neural_network
-  python scripts/run_experiment.py 05_neural_network_local_baselines
 """
 from __future__ import annotations
 
@@ -18,6 +17,7 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 EXPERIMENTS_DIR = REPO_ROOT / "experiments"
+DATA_DIR = REPO_ROOT / "data"
 
 FEDERATED = {
     "01_logistic_regression_geographic",
@@ -29,6 +29,45 @@ FEDERATED = {
 LOCAL_BASELINES = {"05_neural_network_local_baselines"}
 CENTRALIZED = {"06_centralized_neural_network"}
 
+# Which partition each experiment must use
+EXPERIMENT_DATA = {
+    "01_logistic_regression_geographic": {
+        "partition": "geographic",
+        "client_1": DATA_DIR / "geographic" / "client_1" / "data.csv",
+        "client_2": DATA_DIR / "geographic" / "client_2" / "data.csv",
+    },
+    "02_logistic_regression_strong_non_iid": {
+        "partition": "shipping_mode",
+        "client_1": DATA_DIR / "shipping_mode" / "client_1" / "data.csv",
+        "client_2": DATA_DIR / "shipping_mode" / "client_2" / "data.csv",
+    },
+    "03_logistic_regression_increased_epochs": {
+        "partition": "shipping_mode",
+        "client_1": DATA_DIR / "shipping_mode" / "client_1" / "data.csv",
+        "client_2": DATA_DIR / "shipping_mode" / "client_2" / "data.csv",
+    },
+    "04_neural_network_3rounds": {
+        "partition": "shipping_mode",
+        "client_1": DATA_DIR / "shipping_mode" / "client_1" / "data.csv",
+        "client_2": DATA_DIR / "shipping_mode" / "client_2" / "data.csv",
+    },
+    "05_neural_network_local_baselines": {
+        "partition": "shipping_mode",
+        "client_1": DATA_DIR / "shipping_mode" / "client_1" / "data.csv",
+        "client_2": DATA_DIR / "shipping_mode" / "client_2" / "data.csv",
+    },
+    "06_centralized_neural_network": {
+        "partition": "shipping_mode",
+        "client_1": DATA_DIR / "shipping_mode" / "client_1" / "data.csv",
+        "client_2": DATA_DIR / "shipping_mode" / "client_2" / "data.csv",
+    },
+    "07_neural_network_5rounds": {
+        "partition": "shipping_mode",
+        "client_1": DATA_DIR / "shipping_mode" / "client_1" / "data.csv",
+        "client_2": DATA_DIR / "shipping_mode" / "client_2" / "data.csv",
+    },
+}
+
 
 def run(cmd: list[str], cwd: Path, check: bool = True) -> subprocess.CompletedProcess:
     print(f"\n$ {' '.join(cmd)}  (cwd={cwd})")
@@ -39,18 +78,47 @@ def docker_compose(exp_dir: Path, *args: str, check: bool = True) -> subprocess.
     return run(["docker", "compose", *args], cwd=exp_dir, check=check)
 
 
+def ensure_data_present(experiment_name: str) -> bool:
+    """Fail fast if the correct partition CSVs are missing."""
+    meta = EXPERIMENT_DATA.get(experiment_name)
+    if not meta:
+        print(f"No data mapping for experiment: {experiment_name}")
+        return False
+
+    c1, c2 = meta["client_1"], meta["client_2"]
+    print(f"Data partition required: {meta['partition']}")
+    print(f"  client_1 → {c1}")
+    print(f"  client_2 → {c2}")
+
+    missing = [p for p in (c1, c2) if not p.is_file()]
+    if missing:
+        print("\nERROR: required data files are missing:")
+        for p in missing:
+            print(f"  - {p}")
+        print("\nGenerate partitions with:")
+        print("  python data/partition_data.py")
+        print("  # or only one mode:")
+        print("  python data/partition_data.py --mode geographic")
+        print("  python data/partition_data.py --mode shipping_mode")
+        return False
+
+    # Basic non-empty check
+    for p in (c1, c2):
+        if p.stat().st_size < 1000:
+            print(f"WARNING: {p} looks very small ({p.stat().st_size} bytes)")
+    return True
+
+
 def wait_for_file(path: Path, timeout_sec: int, poll_sec: float = 2.0) -> bool:
     print(f"Waiting for {path.name} (timeout={timeout_sec}s)...")
     deadline = time.time() + timeout_sec
     while time.time() < deadline:
         if path.is_file() and path.stat().st_size > 0:
-            # Prefer freshly written dynamic metrics
             try:
                 text = path.read_text(encoding="utf-8")
                 if "flower_history" in text or "local_baseline" in text or "centralized_baseline" in text:
                     print(f"Found metrics file: {path}")
                     return True
-                # Accept any non-empty metrics.json as success for historical files
                 if path.stat().st_mtime > time.time() - timeout_sec:
                     print(f"Found updated metrics file: {path}")
                     return True
@@ -76,19 +144,13 @@ def cleanup_mount_leftovers(exp_dir: Path) -> None:
 def run_federated(exp_dir: Path, timeout_sec: int, keep_up: bool) -> int:
     cleanup_mount_leftovers(exp_dir)
     metrics_path = exp_dir / "metrics.json"
-    # Remove previous metrics so we can detect a fresh write
     if metrics_path.exists():
         metrics_path.unlink()
 
     docker_compose(exp_dir, "down", check=False)
     docker_compose(exp_dir, "up", "--build", "-d")
-
-    # Give server a moment to listen
     time.sleep(3)
 
-    # Start both clients (blocking until each finishes). Run sequentially in subprocess
-    # after a short delay so both can connect during the same server session.
-    # Prefer parallel clients via Popen.
     print("Starting client-1 and client-2...")
     p1 = subprocess.Popen(
         ["docker", "compose", "exec", "-T", "client-1", "python", "client_node.py"],
@@ -143,8 +205,8 @@ def run_local_baselines(exp_dir: Path, timeout_sec: int, keep_up: bool) -> int:
 
     m1 = exp_dir / "metrics_client_1.json"
     m2 = exp_dir / "metrics_client_2.json"
-    ok1 = wait_for_file(m1, timeout_sec=min(60, timeout_sec))
-    ok2 = wait_for_file(m2, timeout_sec=min(60, timeout_sec))
+    ok1 = wait_for_file(m1, timeout_sec=min(120, timeout_sec))
+    ok2 = wait_for_file(m2, timeout_sec=min(120, timeout_sec))
 
     if ok1:
         print("\n===== metrics_client_1.json =====")
@@ -169,8 +231,13 @@ def run_centralized(exp_dir: Path) -> int:
         print(f"Missing {script}")
         return 1
 
-    # Run from experiment dir so relative data paths resolve via script fallbacks
-    result = run([sys.executable, str(script)], cwd=exp_dir, check=False)
+    # Prefer shipping_mode paths via env for the centralized script
+    env = os.environ.copy() if (os := __import__("os")) else {}
+    result = subprocess.run(
+        [sys.executable, str(script)],
+        cwd=str(exp_dir),
+        env=env,
+    )
     if metrics_path.is_file():
         print("\n===== metrics.json =====")
         print(metrics_path.read_text(encoding="utf-8"))
@@ -210,6 +277,9 @@ def main() -> int:
 
     print(f"Running experiment: {name}")
     print(f"Path: {exp_dir}")
+
+    if not ensure_data_present(name):
+        return 1
 
     if name in FEDERATED:
         return run_federated(exp_dir, timeout_sec=args.timeout, keep_up=args.keep_up)
