@@ -23,16 +23,13 @@ Modern supply chains generate valuable operational data that remains siloed due 
 ## 1. Data Acquisition & Partitioning
 
 ```bash
-# Download the dataset
 python -m kaggle datasets download -d shashwatwork/dataco-smart-supply-chain-for-big-data-analysis -p data/ --unzip
-
-# Create strong non-IID partitions based on Shipping Mode
 python data/partition_data.py
 ```
 
-The current partitioning creates two realistic logistics silos:
-- **Client 1 – Express Hub**: First Class + Same Day shipments
-- **Client 2 – Standard Hub**: Second Class + Standard Class shipments
+Silos:
+- **Client 1 – Express Hub**: First Class + Same Day
+- **Client 2 – Standard Hub**: Second Class + Standard Class
 
 ## 2. Main Infrastructure (latest code)
 
@@ -40,41 +37,9 @@ The current partitioning creates two realistic logistics silos:
 docker compose up --build -d
 ```
 
-This starts one central aggregation server and two isolated client nodes.
+## 3. Running Experiments
 
-## 3. Running the Latest Code
-
-### Local Baselines
-
-```bash
-docker compose exec client-1 python local_baseline.py
-docker compose exec client-2 python local_baseline.py
-docker compose exec client-1 python local_baseline_nn.py
-docker compose exec client-2 python local_baseline_nn.py
-```
-
-### Federated Training
-
-```bash
-docker compose restart central-server
-docker compose exec client-1 python client_node.py
-docker compose exec client-2 python client_node.py
-docker compose logs central-server
-```
-
-### Centralized Baseline
-
-```bash
-python centralized_baseline_nn.py
-```
-
-## 4. Isolated Experiments Archive
-
-Historical and self-contained experiment snapshots live under **`experiments/`** (see that folder’s README).
-
-### Single-experiment runner (recommended)
-
-From the repo root:
+### Single experiment runner
 
 ```bash
 python scripts/run_experiment.py 04_neural_network_3rounds
@@ -82,23 +47,37 @@ python scripts/run_experiment.py 05_neural_network_local_baselines
 python scripts/run_experiment.py 06_centralized_neural_network
 ```
 
-This builds containers (when needed), runs clients, waits for `metrics.json`, prints results, and tears down. See `scripts/README.md`.
-
-Manual equivalent:
+### Run all (or a subset) sequentially
 
 ```bash
-cd experiments/04_neural_network_3rounds
-docker compose up --build -d
-docker compose exec client-1 python client_node.py
-docker compose exec client-2 python client_node.py
-cat metrics.json
+# Full batch (slow)
+python scripts/run_all_experiments.py
+
+# Selected only
+python scripts/run_all_experiments.py --only 04,05,06
+
+# Skip some
+python scripts/run_all_experiments.py --skip 01,02
+
+# Stop on first failure
+python scripts/run_all_experiments.py --stop-on-error
 ```
 
-### Automatic metrics export
+See `scripts/README.md` for details.
 
-Federated runs write **`metrics.json`** from the Flower server history (accuracy, F1, loss per round). Local and centralized baselines also export metrics files. These are generated from the run, not hardcoded.
+### Manual (latest stack)
 
-### Analysis notebook (charts)
+```bash
+docker compose exec client-1 python local_baseline_nn.py
+docker compose restart central-server
+docker compose exec client-1 python client_node.py
+docker compose exec client-2 python client_node.py
+python centralized_baseline_nn.py
+```
+
+### Automatic metrics + analysis notebook
+
+Each run writes `metrics.json` (or client-specific metrics). Then:
 
 ```bash
 cd experiments/analysis
@@ -106,60 +85,35 @@ pip install -r requirements.txt
 jupyter notebook experiment_analysis.ipynb
 ```
 
-The notebook loads all `metrics.json` files and generates comparison charts and learning curves into `figures/`.
-
-## 5. Tests
-
-Lightweight checks (structure, metrics schema, aggregation, MLP shapes). Does not start Docker or full FL training.
+## 4. Tests
 
 ```bash
 pip install -r tests/requirements.txt
 python -m pytest tests/ -v
 ```
 
-See `tests/README.md` for details.
+## 5. Key Results (Strong Non-IID)
 
-## 6. Key Experimental Results
+| Setting | Accuracy | F1 Score |
+|---------|----------|----------|
+| Local – Client 1 (Express) | 0.8348 | 0.9041 |
+| Local – Client 2 (Standard) | 0.6552 | 0.5207 |
+| Federated – Logistic Regression | 0.5508 | 0.6970 |
+| **Federated – Neural Network** | **0.6934** | 0.6017 |
+| **Centralized – Neural Network** | **0.6968** | **0.6600** |
 
-### Strong Non-IID Setting (Shipping Mode Partition)
+Main finding: under strong non-IID, FedAvg + LR shows negative transfer; a small NN recovers performance close to the centralized upper bound without sharing raw data.
 
-| Setting                              | Accuracy | F1 Score | Notes |
-|--------------------------------------|----------|----------|-------|
-| Local – Client 1 (Express Hub)       | 0.8348   | 0.9041   | Strong local performance |
-| Local – Client 2 (Standard Hub)      | 0.6552   | 0.5207   | Weaker local performance |
-| Federated – Logistic Regression      | 0.5508   | 0.6970   | Severe negative transfer |
-| **Federated – Neural Network**       | **0.6934** | 0.6017 | Significant improvement over LR |
-| **Centralized – Neural Network**     | **0.6968** | **0.6600** | Theoretical upper bound |
-
-### Main Findings
-
-1. **Target leakage was successfully eliminated.** Early experiments with post-event features (~98% accuracy) were discarded.
-2. **Geographic partitioning is only mildly non-IID.** Local and federated performance are nearly identical.
-3. **Shipping Mode partitioning creates strong non-IID.** Clear gap between Express and Standard hubs.
-4. **FedAvg + Logistic Regression shows negative transfer** under strong non-IID (Accuracy 0.55).
-5. **A small Neural Network largely recovers performance** (0.6934), close to the centralized upper bound (0.6968).
-6. Federated Learning can approach centralized accuracy while keeping raw data local.
-
-## 7. Methodological Notes
-
-- Only pre-event features are used (no target leakage).
-- Categorical variables are one-hot encoded.
-- Server-side weighted aggregation for Accuracy and F1.
-- Experiments are containerized for data isolation between silos.
-
-## 8. Repository Layout
+## 6. Repository Layout
 
 ```text
 .
 ├── clients/
 ├── server/
 ├── data/
-├── experiments/             # Isolated experiment archive
-│   ├── analysis/            # Jupyter notebook for charts
-│   └── ...
-├── scripts/                 # run_experiment.py
+├── experiments/       # isolated snapshots + analysis notebook
+├── scripts/           # run_experiment.py, run_all_experiments.py
 ├── tests/
 ├── figures/
-├── Experiment_Log.md
 └── README.md
 ```
