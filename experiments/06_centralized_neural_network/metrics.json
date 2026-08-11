@@ -1,12 +1,15 @@
 {
   "experiment_id": "06_centralized_neural_network",
-  "generated_at": "2026-08-11T16:54:43.653747+00:00",
+  "generated_at": "2026-08-11T19:42:12.889767+00:00",
   "source": "centralized_baseline_nn",
   "model": "MLP (64-32-1)",
   "results": {
     "centralized": {
-      "accuracy": 0.6976789275426546,
-      "f1_score": 0.6662793897330846,
+      "accuracy": 0.6949645468646133,
+      "f1_score": 0.6723978939227176,
+      "precision": 0.8177411185876564,
+      "recall": 0.5709234188724995,
+      "roc_auc": 0.7407482833362401,
       "n_train": 144415
     }
   }

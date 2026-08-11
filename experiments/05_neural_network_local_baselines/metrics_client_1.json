@@ -1,13 +1,16 @@
 {
   "experiment_id": "05_neural_network_local_baselines",
-  "generated_at": "2026-08-11T16:53:43.480146+00:00",
+  "generated_at": "2026-08-11T19:41:25.205077+00:00",
   "source": "local_baseline_nn",
   "client_id": "client_1_express",
   "model": "MLP (64-32-1)",
   "results": {
     "local": {
-      "accuracy": 0.8463586739448808,
-      "f1_score": 0.9059341375937399,
+      "accuracy": 0.8515510584476101,
+      "f1_score": 0.9060261272650654,
+      "precision": 0.9478046199964733,
+      "recall": 0.867775266386826,
+      "roc_auc": 0.9021920078926161,
       "n_train": 30040
     }
   }
