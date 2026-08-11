@@ -1,21 +1,40 @@
 {
   "experiment_id": "07_neural_network_5rounds",
-  "model": "MLP (64-32-1)",
-  "framework": "Flower + PyTorch (FedAvg)",
-  "partitioning": "Shipping Mode (Express Hub vs Standard Hub)",
-  "non_iid_level": "strong",
+  "generated_at": "2026-08-11T16:55:51.373416+00:00",
+  "source": "flower_history",
   "num_rounds": 5,
-  "local_epochs": 5,
   "results": {
     "federated": {
-      "accuracy": 0.6938,
-      "f1_score": 0.6021,
+      "accuracy": 0.695056086414624,
+      "f1_score": 0.6011492419480481,
+      "loss": 0.3049439073207388,
       "per_round": {
-        "accuracy": [0.6635, 0.6912, 0.6936, 0.6949, 0.6938],
-        "f1_score": [0.6392, 0.6015, 0.6018, 0.6006, 0.6021],
-        "loss": [0.3365, 0.3088, 0.3064, 0.3051, 0.3062]
+        "accuracy": [
+          0.6912339011217283,
+          0.6920094169782579,
+          0.695554632322393,
+          0.6952499653787564,
+          0.695056086414624
+        ],
+        "f1_score": [
+          0.6010540955880109,
+          0.6002143582371705,
+          0.5988851864852515,
+          0.5982331236051383,
+          0.6011492419480481
+        ],
+        "loss": [
+          0.3087660904270578,
+          0.30799059469297707,
+          0.3044453605590575,
+          0.3047500404488131,
+          0.3049439073207388
+        ]
       }
     }
   },
-  "notes": "Most improvement occurs in the first 2-3 rounds. Extending to 5 rounds yields no meaningful gains. Three rounds are sufficient for this setup."
+  "model": "MLP (64-32-1)",
+  "partitioning": "Shipping Mode (Express vs Standard)",
+  "non_iid_level": "strong",
+  "local_epochs": 5
 }

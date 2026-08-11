@@ -1,0 +1,14 @@
+{
+  "experiment_id": "05_neural_network_local_baselines",
+  "generated_at": "2026-08-11T16:53:58.930478+00:00",
+  "source": "local_baseline_nn",
+  "client_id": "client_2_standard",
+  "model": "MLP (64-32-1)",
+  "results": {
+    "local": {
+      "accuracy": 0.6551024690494509,
+      "f1_score": 0.5199104274169993,
+      "n_train": 114374
+    }
+  }
+}

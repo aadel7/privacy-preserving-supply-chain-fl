@@ -1,32 +1,34 @@
 {
   "experiment_id": "02_logistic_regression_strong_non_iid",
-  "model": "Logistic Regression",
-  "framework": "Flower (FedAvg)",
-  "partitioning": "Shipping Mode (Express Hub vs Standard Hub)",
-  "non_iid_level": "strong",
+  "generated_at": "2026-08-11T16:40:18.157617+00:00",
+  "source": "flower_history",
   "num_rounds": 3,
-  "local_epochs": 1,
   "results": {
-    "local_client_1_express": {
-      "accuracy": 0.8364,
-      "f1_score": 0.8958,
-      "n_samples": 30040
-    },
-    "local_client_2_standard": {
-      "accuracy": 0.6528,
-      "f1_score": 0.5196,
-      "n_samples": 114374
-    },
     "federated": {
-      "accuracy": 0.5508,
-      "f1_score": 0.6970,
-      "loss": 0.4492,
+      "accuracy": 0.5507547431103725,
+      "f1_score": 0.6969674739445845,
+      "loss": 0.4492452630436564,
       "per_round": {
-        "accuracy": [0.5508, 0.5508, 0.5508],
-        "f1_score": [0.6970, 0.6970, 0.6970],
-        "loss": [0.4492, 0.4492, 0.4492]
+        "accuracy": [
+          0.5507547431103725,
+          0.5507547431103725,
+          0.5507547431103725
+        ],
+        "f1_score": [
+          0.6969674739445845,
+          0.6969674739445845,
+          0.6969674739445845
+        ],
+        "loss": [
+          0.4492452630436564,
+          0.4492452630436564,
+          0.4492452630436564
+        ]
       }
     }
   },
-  "notes": "Severe negative transfer under strong non-IID. Federated accuracy worse than both local baselines. Metrics completely flat across rounds."
+  "model": "Logistic Regression",
+  "partitioning": "Shipping Mode (Express vs Standard)",
+  "non_iid_level": "strong",
+  "local_epochs": 1
 }
