@@ -1,6 +1,17 @@
 # Experiment Analysis
 
-This folder contains a Jupyter notebook that **reads metrics dynamically** from each experiment's `metrics.json` files.
+Jupyter notebook that **reads metrics dynamically** from `experiments/*/metrics*.json`.
+
+## Metrics supported
+
+- accuracy
+- f1_score
+- precision
+- recall
+- roc_auc
+- loss
+
+Older `metrics.json` files without precision/recall/roc_auc still load; those columns will be empty until you re-run experiments with the updated evaluation code.
 
 ## Setup
 
@@ -10,18 +21,11 @@ pip install -r requirements.txt
 jupyter notebook experiment_analysis.ipynb
 ```
 
-Or with VS Code / Cursor: open `experiment_analysis.ipynb` and run all cells.
+## Outputs
 
-## What it does
+Written under `figures/`:
 
-1. Scans `experiments/*/metrics*.json`
-2. Builds a results table
-3. Generates comparison bar charts
-4. Plots learning curves when per-round data exists
-5. Exports `figures/metrics_summary.csv` and PNG charts
-
-## Important
-
-- Charts are driven by **whatever is in the metrics files**, not hardcoded numbers.
-- After re-running an experiment, re-run the notebook to refresh figures.
-- Historical metrics files (written earlier) work the same as newly generated ones.
+- `comparison_from_metrics.png` — Accuracy / F1 / ROC-AUC bars
+- `precision_recall_from_metrics.png` — Precision / Recall bars
+- `learning_curves_from_metrics.png` — per-round curves including ROC-AUC when present
+- `metrics_summary.csv` — flat table of all loaded metrics
