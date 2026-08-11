@@ -72,14 +72,26 @@ python centralized_baseline_nn.py
 
 Historical and self-contained experiment snapshots live under **`experiments/`** (see that folder’s README).
 
-Each experiment can be run independently, for example:
+### Single-experiment runner (recommended)
+
+From the repo root:
+
+```bash
+python scripts/run_experiment.py 04_neural_network_3rounds
+python scripts/run_experiment.py 05_neural_network_local_baselines
+python scripts/run_experiment.py 06_centralized_neural_network
+```
+
+This builds containers (when needed), runs clients, waits for `metrics.json`, prints results, and tears down. See `scripts/README.md`.
+
+Manual equivalent:
 
 ```bash
 cd experiments/04_neural_network_3rounds
 docker compose up --build -d
 docker compose exec client-1 python client_node.py
 docker compose exec client-2 python client_node.py
-cat metrics.json   # written automatically after the run
+cat metrics.json
 ```
 
 ### Automatic metrics export
@@ -102,7 +114,7 @@ Lightweight checks (structure, metrics schema, aggregation, MLP shapes). Does no
 
 ```bash
 pip install -r tests/requirements.txt
-pytest tests/ -v
+python -m pytest tests/ -v
 ```
 
 See `tests/README.md` for details.
@@ -139,14 +151,14 @@ See `tests/README.md` for details.
 
 ```text
 .
-├── clients/                 # Latest client code
-├── server/                  # Latest server code
-├── data/                    # Dataset and partitions
+├── clients/
+├── server/
+├── data/
 ├── experiments/             # Isolated experiment archive
-│   ├── 01_.../
 │   ├── analysis/            # Jupyter notebook for charts
-│   └── README.md
-├── tests/                   # pytest suite
+│   └── ...
+├── scripts/                 # run_experiment.py
+├── tests/
 ├── figures/
 ├── Experiment_Log.md
 └── README.md
