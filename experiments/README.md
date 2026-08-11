@@ -26,65 +26,78 @@ Each subfolder is self-contained and captures the code, configuration, documenta
 | **Federated – Neural Network** | **0.6934** | 0.6017 |
 | **Centralized – Neural Network** | **0.6968** | **0.6600** |
 
-## Detailed Experiment Descriptions
+## Automatic Metrics Export
 
-### 1. `01_logistic_regression_geographic/`
-**Model:** Logistic Regression  
-**Partition:** Geographic (Europe vs LATAM) — mild non-IID  
-**Key Metrics:** Federated Acc 0.6929 / F1 0.6786  
-**Finding:** Federated performance nearly identical to local baselines. Geographic split does not create significant heterogeneity.
+After each run, experiments write results to **`metrics.json`** (dynamically, from the actual training run — not hardcoded).
 
-### 2. `02_logistic_regression_strong_non_iid/`
-**Model:** Logistic Regression  
-**Partition:** Shipping Mode (Express vs Standard) — strong non-IID  
-**Key Metrics:** Federated Acc 0.5508 / F1 0.6970  
-**Local:** Express 0.8364 / 0.8958 ; Standard 0.6528 / 0.5196  
-**Finding:** Clear negative transfer. Federated accuracy worse than both local models.
+| Experiment type | Who writes metrics | Output file |
+|-----------------|--------------------|-------------|
+| Federated (01–04, 07) | Central server (Flower History) | `metrics.json` |
+| Local baselines (05) | Each client script | `metrics_client_1.json`, `metrics_client_2.json` |
+| Centralized (06) | Baseline script | `metrics.json` |
 
-### 3. `03_logistic_regression_increased_epochs/`
-**Model:** Logistic Regression with 5 local epochs  
-**Partition:** Same strong non-IID as Exp 2  
-**Key Metrics:** Federated Acc 0.5508 / F1 0.6970 (identical to Exp 2)  
-**Finding:** Increasing local epochs produced **no change**. Linear models converge quickly; more local steps do not help.
+Federated metrics include per-round accuracy, F1, and loss when available. Look for `[metrics] Wrote ...` in the server/client logs.
 
-### 4. `04_neural_network_3rounds/`
-**Model:** Small MLP (64→32→1)  
-**Partition:** Strong non-IID (Shipping Mode)  
-**Key Metrics:** Federated Acc 0.6934 / F1 0.6017  
-**Finding:** Breakthrough. NN substantially outperforms LR under the same conditions and shows real improvement across rounds.
+## Analysis Notebook (Charts)
 
-### 5. `05_neural_network_local_baselines/`
-**Model:** Same MLP, trained locally  
-**Results:** Client 1 (Express) Acc 0.8348 / F1 0.9041 ; Client 2 (Standard) Acc 0.6552 / F1 0.5207  
-**Finding:** Large performance gap confirms strong non-IID. Federated NN sits between the two local models.
+Charts and summary tables are generated from the metrics files:
 
-### 6. `06_centralized_neural_network/`
-**Model:** Same MLP trained on combined data  
-**Key Metrics:** Acc 0.6968 / F1 0.6600  
-**Finding:** Theoretical upper bound. Federated NN (0.6934) is nearly identical → strong support for “privacy without penalty”.
+```bash
+cd experiments/analysis
+pip install -r requirements.txt
+jupyter notebook experiment_analysis.ipynb
+```
 
-### 7. `07_neural_network_5rounds/`
-**Model:** Same MLP, 5 communication rounds  
-**Key Metrics:** Final Acc 0.6938 / F1 0.6021  
-**Finding:** Most gains occur in the first 2–3 rounds. Extending to 5 rounds yields no meaningful additional improvement.
+The notebook:
+
+1. Loads all `experiments/*/metrics*.json` files
+2. Builds a results table
+3. Generates comparison bar charts and learning curves
+4. Saves figures under `figures/` and a CSV summary
+
+See `analysis/README.md` for details.
+
+## How to Run an Isolated Experiment
+
+```bash
+cd experiments/04_neural_network_3rounds
+
+# Remove any accidental local data.csv/ folders from failed mounts
+rm -rf data.csv data
+
+docker compose down
+docker compose up --build -d
+
+# Federated run (two terminals)
+docker compose exec client-1 python client_node.py
+docker compose exec client-2 python client_node.py
+
+# Results
+docker compose logs central-server
+cat metrics.json
+```
+
+**Note:** Free port 8080 first if another stack is using it (`docker compose down` in the repo root).
 
 ## Folder Structure
 
-Each experiment folder typically contains:
-
 ```
-experiments/NN_experiment_name/
+experiments/
 ├── README.md
-├── metrics.json              # Structured results (machine-readable)
-├── client_node.py            # Federated client (if applicable)
-├── local_baseline*.py        # Local baseline (if applicable)
-├── centralized_baseline_nn.py # Centralized baseline (if applicable)
-├── server/
-│   ├── main.py
+├── analysis/
+│   ├── experiment_analysis.ipynb
+│   ├── requirements.txt
+│   └── README.md
+├── 01_logistic_regression_geographic/
+│   ├── README.md
+│   ├── metrics.json          # written/updated by the run
+│   ├── client_node.py
+│   ├── server/
+│   ├── docker-compose.yml
 │   ├── Dockerfile
 │   └── requirements.txt
-├── docker-compose.yml
-└── requirements.txt
+├── ...
+└── 07_neural_network_5rounds/
 ```
 
 ## Key Insights Across All Experiments
@@ -102,10 +115,11 @@ experiments/NN_experiment_name/
 - Categorical features are one-hot encoded.
 - Server-side weighted aggregation is used for Accuracy and F1.
 - All experiments are containerized to guarantee data isolation between silos.
+- `.dockerignore` excludes accidental `data/` / `data.csv/` folders from image builds.
 
 ## Reproducibility
 
 - Dataset: DataCo Smart Supply Chain (Kaggle)
 - Fixed random seeds where applicable (`random_state=42`)
 - Dependencies listed per experiment
-- Structured metrics available in each folder’s `metrics.json`
+- Metrics are exported automatically from each run into `metrics.json`
