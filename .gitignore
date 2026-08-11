@@ -1,0 +1,61 @@
+# Byte-compiled / cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+.eggs/
+dist/
+build/
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Testing / coverage
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# IDE / OS
+.idea/
+.vscode/
+*.swp
+.DS_Store
+Thumbs.db
+
+# Environment / secrets
+.env
+.env.*
+!.env.example
+**/kaggle.json
+
+# Docker
+*.log
+
+# Local data artifacts (keep partitioned data policy as you prefer)
+# Uncomment the next lines if you do NOT want large CSVs in git:
+# data/DataCoSupplyChainDataset.csv
+# data/tokenized_access_logs.csv
+# data/client_1/data.csv
+# data/client_2/data.csv
+
+# Accidental Docker mount leftovers inside experiment folders
+experiments/**/data/
+experiments/**/data.csv/
+experiments/**/data.csv
+
+# Optional: ignore regenerated metrics if you only want committed baselines
+# experiments/**/metrics.json
+# experiments/**/metrics_*.json
+
+# Local chart regen noise (keep committed figures if desired)
+# figures/*.png
