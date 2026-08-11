@@ -4,6 +4,11 @@ services:
       context: ./server
     ports:
       - "8080:8080"
+    volumes:
+      - .:/output
+    environment:
+      - METRICS_PATH=/output/metrics.json
+      - EXPERIMENT_ID=01_logistic_regression_geographic
     networks:
       - fl-network
 

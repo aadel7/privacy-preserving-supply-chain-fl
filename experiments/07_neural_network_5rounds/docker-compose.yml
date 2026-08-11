@@ -4,6 +4,11 @@ services:
       context: ./server
     ports:
       - "8080:8080"
+    volumes:
+      - .:/output
+    environment:
+      - METRICS_PATH=/output/metrics.json
+      - EXPERIMENT_ID=07_neural_network_5rounds
     networks:
       - fl-network
 
