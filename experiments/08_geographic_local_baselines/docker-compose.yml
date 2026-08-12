@@ -1,0 +1,26 @@
+services:
+  client-1:
+    build: .
+    volumes:
+      - ../../data/geographic/client_1/data.csv:/app/data.csv
+      - .:/output
+    environment:
+      - CLIENT_ID=client_1_europe
+      - METRICS_PATH=/output/metrics_client_1.json
+    networks:
+      - fl-network
+
+  client-2:
+    build: .
+    volumes:
+      - ../../data/geographic/client_2/data.csv:/app/data.csv
+      - .:/output
+    environment:
+      - CLIENT_ID=client_2_latam
+      - METRICS_PATH=/output/metrics_client_2.json
+    networks:
+      - fl-network
+
+networks:
+  fl-network:
+    driver: bridge
