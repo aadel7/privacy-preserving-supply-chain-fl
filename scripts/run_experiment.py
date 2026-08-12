@@ -4,12 +4,13 @@ Run a single isolated experiment from experiments/<name>/
 
 Examples:
   python scripts/run_experiment.py 04_neural_network_3rounds
-  python scripts/run_experiment.py 01_logistic_regression_geographic
+  python scripts/run_experiment.py 08_geographic_local_baselines
   python scripts/run_experiment.py 06_centralized_neural_network
 """
 from __future__ import annotations
 
 import argparse
+import os
 import subprocess
 import sys
 import time
@@ -26,10 +27,18 @@ FEDERATED = {
     "04_neural_network_3rounds",
     "07_neural_network_5rounds",
 }
-LOCAL_BASELINES = {"05_neural_network_local_baselines"}
+LOCAL_BASELINES = {
+    "05_neural_network_local_baselines",
+    "08_geographic_local_baselines",
+}
 CENTRALIZED = {"06_centralized_neural_network"}
 
-# Which partition each experiment must use
+# Script name inside the experiment folder for local baselines
+LOCAL_SCRIPT = {
+    "05_neural_network_local_baselines": "local_baseline_nn.py",
+    "08_geographic_local_baselines": "local_baseline.py",
+}
+
 EXPERIMENT_DATA = {
     "01_logistic_regression_geographic": {
         "partition": "geographic",
@@ -66,6 +75,11 @@ EXPERIMENT_DATA = {
         "client_1": DATA_DIR / "shipping_mode" / "client_1" / "data.csv",
         "client_2": DATA_DIR / "shipping_mode" / "client_2" / "data.csv",
     },
+    "08_geographic_local_baselines": {
+        "partition": "geographic",
+        "client_1": DATA_DIR / "geographic" / "client_1" / "data.csv",
+        "client_2": DATA_DIR / "geographic" / "client_2" / "data.csv",
+    },
 }
 
 
@@ -79,7 +93,6 @@ def docker_compose(exp_dir: Path, *args: str, check: bool = True) -> subprocess.
 
 
 def ensure_data_present(experiment_name: str) -> bool:
-    """Fail fast if the correct partition CSVs are missing."""
     meta = EXPERIMENT_DATA.get(experiment_name)
     if not meta:
         print(f"No data mapping for experiment: {experiment_name}")
@@ -97,12 +110,10 @@ def ensure_data_present(experiment_name: str) -> bool:
             print(f"  - {p}")
         print("\nGenerate partitions with:")
         print("  python data/partition_data.py")
-        print("  # or only one mode:")
         print("  python data/partition_data.py --mode geographic")
         print("  python data/partition_data.py --mode shipping_mode")
         return False
 
-    # Basic non-empty check
     for p in (c1, c2):
         if p.stat().st_size < 1000:
             print(f"WARNING: {p} looks very small ({p.stat().st_size} bytes)")
@@ -116,7 +127,11 @@ def wait_for_file(path: Path, timeout_sec: int, poll_sec: float = 2.0) -> bool:
         if path.is_file() and path.stat().st_size > 0:
             try:
                 text = path.read_text(encoding="utf-8")
-                if "flower_history" in text or "local_baseline" in text or "centralized_baseline" in text:
+                if (
+                    "flower_history" in text
+                    or "local_baseline" in text
+                    or "centralized_baseline" in text
+                ):
                     print(f"Found metrics file: {path}")
                     return True
                 if path.stat().st_mtime > time.time() - timeout_sec:
@@ -185,28 +200,29 @@ def run_federated(exp_dir: Path, timeout_sec: int, keep_up: bool) -> int:
     return 0 if rc1 == 0 and rc2 == 0 else 1
 
 
-def run_local_baselines(exp_dir: Path, timeout_sec: int, keep_up: bool) -> int:
+def run_local_baselines(exp_dir: Path, experiment_name: str, timeout_sec: int, keep_up: bool) -> int:
     cleanup_mount_leftovers(exp_dir)
     for name in ("metrics_client_1.json", "metrics_client_2.json", "metrics.json"):
         p = exp_dir / name
         if p.exists():
             p.unlink()
 
+    script = LOCAL_SCRIPT.get(experiment_name, "local_baseline.py")
+    if not (exp_dir / script).is_file():
+        print(f"Missing local script: {exp_dir / script}")
+        return 1
+
     docker_compose(exp_dir, "down", check=False)
     docker_compose(exp_dir, "up", "--build", "-d")
     time.sleep(2)
 
-    r1 = docker_compose(
-        exp_dir, "exec", "-T", "client-1", "python", "local_baseline_nn.py", check=False
-    )
-    r2 = docker_compose(
-        exp_dir, "exec", "-T", "client-2", "python", "local_baseline_nn.py", check=False
-    )
+    r1 = docker_compose(exp_dir, "exec", "-T", "client-1", "python", script, check=False)
+    r2 = docker_compose(exp_dir, "exec", "-T", "client-2", "python", script, check=False)
 
     m1 = exp_dir / "metrics_client_1.json"
     m2 = exp_dir / "metrics_client_2.json"
-    ok1 = wait_for_file(m1, timeout_sec=min(120, timeout_sec))
-    ok2 = wait_for_file(m2, timeout_sec=min(120, timeout_sec))
+    ok1 = wait_for_file(m1, timeout_sec=min(180, timeout_sec))
+    ok2 = wait_for_file(m2, timeout_sec=min(180, timeout_sec))
 
     if ok1:
         print("\n===== metrics_client_1.json =====")
@@ -231,13 +247,7 @@ def run_centralized(exp_dir: Path) -> int:
         print(f"Missing {script}")
         return 1
 
-    # Prefer shipping_mode paths via env for the centralized script
-    env = os.environ.copy() if (os := __import__("os")) else {}
-    result = subprocess.run(
-        [sys.executable, str(script)],
-        cwd=str(exp_dir),
-        env=env,
-    )
+    result = subprocess.run([sys.executable, str(script)], cwd=str(exp_dir), env=os.environ.copy())
     if metrics_path.is_file():
         print("\n===== metrics.json =====")
         print(metrics_path.read_text(encoding="utf-8"))
@@ -250,26 +260,16 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Run one isolated experiment")
     parser.add_argument(
         "experiment",
-        help="Experiment folder name under experiments/ (e.g. 04_neural_network_3rounds)",
+        help="Experiment folder name under experiments/",
     )
-    parser.add_argument(
-        "--timeout",
-        type=int,
-        default=600,
-        help="Seconds to wait for metrics.json (default: 600)",
-    )
-    parser.add_argument(
-        "--keep-up",
-        action="store_true",
-        help="Do not docker compose down after the run",
-    )
+    parser.add_argument("--timeout", type=int, default=600)
+    parser.add_argument("--keep-up", action="store_true")
     args = parser.parse_args()
 
     name = args.experiment.strip().rstrip("/")
     exp_dir = EXPERIMENTS_DIR / name
     if not exp_dir.is_dir():
         print(f"Experiment not found: {exp_dir}")
-        print("Available:")
         for p in sorted(EXPERIMENTS_DIR.iterdir()):
             if p.is_dir() and p.name[0].isdigit():
                 print(f"  - {p.name}")
@@ -284,7 +284,9 @@ def main() -> int:
     if name in FEDERATED:
         return run_federated(exp_dir, timeout_sec=args.timeout, keep_up=args.keep_up)
     if name in LOCAL_BASELINES:
-        return run_local_baselines(exp_dir, timeout_sec=args.timeout, keep_up=args.keep_up)
+        return run_local_baselines(
+            exp_dir, name, timeout_sec=args.timeout, keep_up=args.keep_up
+        )
     if name in CENTRALIZED:
         return run_centralized(exp_dir)
 

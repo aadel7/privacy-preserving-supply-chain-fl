@@ -4,9 +4,8 @@ Run multiple isolated experiments sequentially using run_experiment.py.
 
 Examples:
   python scripts/run_all_experiments.py
-  python scripts/run_all_experiments.py --only 04,05,06
-  python scripts/run_all_experiments.py --skip 01,02
-  python scripts/run_all_experiments.py --timeout 900
+  python scripts/run_all_experiments.py --only 01,08
+  python scripts/run_all_experiments.py --only 08
 """
 from __future__ import annotations
 
@@ -19,9 +18,9 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[1]
 RUNNER = REPO_ROOT / "scripts" / "run_experiment.py"
 
-# Default order: mild → strong LR → epochs → NN → locals → centralized → 5 rounds
 DEFAULT_ORDER = [
     "01_logistic_regression_geographic",
+    "08_geographic_local_baselines",
     "02_logistic_regression_strong_non_iid",
     "03_logistic_regression_increased_epochs",
     "04_neural_network_3rounds",
@@ -29,6 +28,8 @@ DEFAULT_ORDER = [
     "06_centralized_neural_network",
     "07_neural_network_5rounds",
 ]
+
+SHORT_IDS = {f"{i:02d}" for i in range(1, 9)}
 
 
 def parse_list(value: str | None) -> set[str] | None:
@@ -39,9 +40,9 @@ def parse_list(value: str | None) -> set[str] | None:
         part = part.strip().rstrip("/")
         if not part:
             continue
-        # Allow short ids: 04 → 04_neural_network_3rounds
-        if part.isdigit() or (len(part) <= 2 and part.lstrip("0").isdigit() or part in {"01", "02", "03", "04", "05", "06", "07"}):
-            matched = [e for e in DEFAULT_ORDER if e.startswith(part.zfill(2))]
+        key = part.zfill(2) if part.isdigit() else part
+        if key in SHORT_IDS or (len(part) <= 2 and part.isdigit()):
+            matched = [e for e in DEFAULT_ORDER if e.startswith(key)]
             if matched:
                 items.add(matched[0])
                 continue
@@ -51,34 +52,11 @@ def parse_list(value: str | None) -> set[str] | None:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Run all (or selected) experiments sequentially")
-    parser.add_argument(
-        "--only",
-        type=str,
-        default=None,
-        help="Comma-separated experiment names or numbers (e.g. 04,05,06)",
-    )
-    parser.add_argument(
-        "--skip",
-        type=str,
-        default=None,
-        help="Comma-separated experiment names or numbers to skip",
-    )
-    parser.add_argument(
-        "--timeout",
-        type=int,
-        default=600,
-        help="Per-experiment metrics timeout seconds (default: 600)",
-    )
-    parser.add_argument(
-        "--keep-up",
-        action="store_true",
-        help="Pass --keep-up to each federated/local Docker run",
-    )
-    parser.add_argument(
-        "--stop-on-error",
-        action="store_true",
-        help="Stop the batch if one experiment fails (default: continue)",
-    )
+    parser.add_argument("--only", type=str, default=None)
+    parser.add_argument("--skip", type=str, default=None)
+    parser.add_argument("--timeout", type=int, default=600)
+    parser.add_argument("--keep-up", action="store_true")
+    parser.add_argument("--stop-on-error", action="store_true")
     args = parser.parse_args()
 
     only = parse_list(args.only)
@@ -94,10 +72,6 @@ def main() -> int:
 
     if not experiments:
         print("No experiments selected.")
-        return 1
-
-    if not RUNNER.is_file():
-        print(f"Missing runner: {RUNNER}")
         return 1
 
     print("Experiments to run:")
@@ -139,9 +113,6 @@ def main() -> int:
             failed += 1
         print(f"  [{flag}] {name:45s}  {elapsed/60:6.1f} min  (rc={rc})")
     print(f"\nTotal: {len(results)} run(s), {failed} failed, wall time {total/60:.1f} min")
-
-    if failed == 0:
-        print("\nNext: refresh charts with experiments/analysis/experiment_analysis.ipynb")
     return 0 if failed == 0 else 1
 
 
