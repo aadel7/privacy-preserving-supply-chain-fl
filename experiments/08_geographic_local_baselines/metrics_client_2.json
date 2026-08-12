@@ -1,0 +1,19 @@
+{
+  "experiment_id": "08_geographic_local_baselines",
+  "generated_at": "2026-08-12T20:12:47.199381+00:00",
+  "source": "local_baseline_lr_geographic",
+  "client_id": "client_2_latam",
+  "model": "Logistic Regression",
+  "partitioning": "Geographic (Europe vs LATAM)",
+  "non_iid_level": "mild",
+  "results": {
+    "local": {
+      "accuracy": 0.6891171625157476,
+      "f1_score": 0.6673579427623393,
+      "precision": 0.7975216852540272,
+      "recall": 0.5737208058477447,
+      "roc_auc": 0.7198264731499536,
+      "n_train": 41275
+    }
+  }
+}
